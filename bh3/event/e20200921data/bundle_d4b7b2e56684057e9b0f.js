@@ -4744,7 +4744,7 @@
             }, this.intro = function() {
                 o.reset(), o.visible = !0, o.playAnimation("CUT0_60"), l.visible = !0, l.material.uniforms.opacity.value = 1, l.playAnimation("CUT0_60", {
                     onComplete: function() {
-                        p.visible = !0, i.default.getEventDispatcher().dispatchEvent({
+                        p.visible = !1, i.default.getEventDispatcher().dispatchEvent({
                             type: "OPEN_PAGE_COMPLETE",
                             data: 0
                         })
