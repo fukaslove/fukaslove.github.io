@@ -2462,7 +2462,7 @@
                     type: "PAGE_INIT"
                 }), v.getObjectByName("PAGE4_CONTENT").userData.sceneP4Ground = d, v.getObjectByName("P5_ROOM_BG").userData.sceneP5BG = h;
                 var t = (new Date).getHours();
-                v.userData.isNight = t < 6 || t >= 18, v.userData.isRich = !0, r.default.updateTextTexture(v.getObjectByName("PAPER_COVER").material.uniforms.name.value, "\n00000000\n000\n0000"), v.getObjectByName("BOOK").intro()
+                v.userData.isNight = t < 6 || t >= 18, v.userData.isRich = !0, r.default.updateTextTexture(v.getObjectByName("PAPER_COVER").material.uniforms.name.value, "\n"), v.getObjectByName("BOOK").intro()
             },
             initCamera: function() {
                 var e = o(180);
