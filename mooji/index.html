@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
+        integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
+    <script src="jQueryRotate.js"></script>
+    <script src="gauss.js"></script>
+    <title>무지성 퍼즐풀이</title>
+    <style type="text/css">
+        #header {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            width: 100%;
+            height: 10%;
+            background-color: lightgray;
+            display: flex;
+            align-items: center;
+        }
+
+        #middle {
+            position: absolute;
+            left: 0px;
+            top: 10%;
+            width: 100%;
+            height: 90%;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            z-index: 1;
+        }
+
+        #footer {
+            position: absolute;
+            left: 0px;
+            top: 10%;
+            width: 100%;
+            height: 90%;
+            display: flex;
+            align-items: center;
+            z-index: 0;
+        }
+
+        #middleContent,
+        #footerContent {
+            width: 100%;
+            text-align: center;
+            font-size: 16pt;
+        }
+
+        #headerContent {
+            width: 100%;
+            text-align: center;
+            font-size: 20pt;
+        }
+
+        select {
+            font-size: 16pt;
+        }
+
+        #howBlock1,
+        #howBlock2 {
+            display: inline-block;
+        }
+
+        #block1,
+        #block2,
+        #block3,
+        #block4,
+        #block5,
+        #block6 {
+            display: none;
+        }
+    </style>
+    <script type="text/javascript">
+        forCalc = {
+            blockType: 0,
+            blockCount: 0,
+            blockSetCount: 1,
+            blockData1: [],
+            blockData2: [],
+            ignoreData: [],
+            ignoreData2: [],
+            globalGauss: []
+        }
+        function startPage() {
+            $("#howBlock1 .st3").css("opacity", 0);
+            $("#howBlock2 .st2").css("opacity", 0);
+            $("#howBlock1").click(function () {
+                $("#howBlock1 .st3").css("opacity", 1);
+                $("#howBlock2 .st2").css("opacity", 0);
+                forCalc.blockType = 1;
+            });
+            $("#howBlock2").click(function () {
+                $("#howBlock1 .st3").css("opacity", 0);
+                $("#howBlock2 .st2").css("opacity", 1);
+                forCalc.blockType = 2;
+            });
+        }
+        function initBlocks() {
+            if (forCalc.blockType == 0) {
+                alert("블럭 형태를 선택해라 게이야");
+                return false;
+            } else {
+                forCalc.blockCount = $("#howMuch").val();
+                for (i = 1; i <= forCalc.blockCount; i++) {
+                    forCalc.blockData1.push([]);
+                    forCalc.blockData2.push(0);
+                    $("#block" + i).css("display", "inline-block").draggable();
+                    $("#block" + i + " .pwn").css("opacity", 0);
+                }
+                $("#middle").hide();
+                $("#menu1").hide();
+                $("#menu2").show();
+            }
+        }
+        function getBlocks() {
+            for (i = 1; i <= forCalc.blockCount; i++) {
+                $("#block" + i).draggable("disable");
+                forCalc.ignoreData[i - 1] = false;
+            }
+            $("#menu2").hide();
+            $("#menu3").show();
+            $("#how1").text("1");
+            $("#how2").text(forCalc.blockCount);
+            $("#block1 .st0").css("fill", "#FF0000");
+            $("#block1").click(whatClick2);
+            for (i = 2; i <= forCalc.blockCount; i++) {
+                $("#block" + i).click(whatClick);
+            }
+            forCalc.blockData2[0] = 1;
+        }
+        function whatBlock() {
+            for (i = 1; i <= forCalc.blockCount; i++) {
+                forCalc.blockData1[i - 1][forCalc.blockSetCount - 1] = forCalc.blockData2[i - 1];
+                forCalc.blockData2[i - 1] = 0;
+                $("#block" + i + " .st0").css("fill", "#D1EBFA");
+                $("#block" + i).off("click").click(whatClick);
+            }
+            forCalc.blockSetCount += 1;
+            if (forCalc.blockCount < forCalc.blockSetCount) {
+                statBlocks();
+            } else {
+                forCalc.blockData2[forCalc.blockSetCount - 1] = 1;
+                $("#block" + forCalc.blockSetCount + " .st0").css("fill", "#FF0000");
+                $("#block" + forCalc.blockSetCount).off("click").click(whatClick2);
+                $("#how1").text(forCalc.blockSetCount);
+            }
+        }
+        function statBlocks() {
+            $("#menu3").hide();
+            $("#menu4").show();
+            for (i = 1; i <= forCalc.blockCount; i++) {
+                if (forCalc.blockType == 1) {
+                    $("#block" + i).off("click").click(statClick1);
+                    $("#block" + i + " .kne2").css("fill", "#FFFFFF");
+                    $("#block" + i + " .kne3").css("fill", "#FFFFFF");
+                } else {
+                    $("#block" + i).off("click").click(statClick2);
+                    $("#block" + i + " .pwn").css("opacity", 1);
+                    $("#block" + i).rotate({ animateTo: 180 });
+                }
+                forCalc.blockData2[i - 1] = 0;
+            }
+        }
+        function calcBlocks() {
+            var k = 2 + forCalc.blockType;
+            trimBlock();
+            for (i = 1; i <= forCalc.blockCount; i++) {
+                forCalc.blockData2[i - 1] = k - forCalc.blockData2[i - 1];
+            }
+            forCalc.globalGauss = gausscheck();
+            var ep = forCalc.globalGauss;
+            var tt = 1;
+            for (i = 1; i <= forCalc.blockCount; i++) {
+                if (forCalc.ignoreData[i - 1]) {
+                    $("#block" + i).off("click").append(0 + "번");
+                    if (forCalc.ignoreData2[i - 1] == k) tt++;
+                }
+                else {
+                    if (ep[tt - 1] != "Nothing") {
+                        var kk = ep[tt - 1];
+                        if (kk < 0) kk += k;
+                        $("#block" + i).off("click").append(kk + "번");
+                        tt++;
+                    } else {
+                        alert("삐빅! 능지 부족으로 계산이 안됨");
+                        return false;
+                    }
+                }
+            }
+            $("#menu4").hide();
+            $("#menu5").show();
+        }
+        function whatClick() {
+            var ids = $(this).attr("id").substring(5);
+            if (forCalc.blockData2[ids - 1] == 0) {
+                $("#block" + ids + " .st0").css("fill", "#0000FF");
+                forCalc.blockData2[ids - 1] = 1;
+            } else {
+                $("#block" + ids + " .st0").css("fill", "#D1EBFA");
+                forCalc.blockData2[ids - 1] = 0;
+            }
+        }
+        function whatClick2() {
+            if (confirm("혹시 이새끼 때려도 아무것도 안움직임?")) {
+                forCalc.blockData2[forCalc.blockSetCount - 1] = 0;
+                forCalc.ignoreData[forCalc.blockSetCount - 1] = true;
+                whatBlock();
+            }
+        }
+        function statClick1() {
+            var ids = $(this).attr("id").substring(5);
+            if (forCalc.blockData2[ids - 1] == 2) {
+                forCalc.blockData2[ids - 1] = 0;
+                $("#block" + ids + " .kne2").css("fill", "#FFFFFF");
+                $("#block" + ids + " .kne3").css("fill", "#FFFFFF");
+            } else if (forCalc.blockData2[ids - 1] == 1) {
+                forCalc.blockData2[ids - 1] += 1;
+                $("#block" + ids + " .kne3").css("fill", "#45C1F1");
+            } else {
+                forCalc.blockData2[ids - 1] += 1;
+                $("#block" + ids + " .kne2").css("fill", "#45C1F1");
+            }
+        }
+        function statClick2() {
+            var ids = $(this).attr("id").substring(5);
+            if (forCalc.blockData2[ids - 1] == 3) {
+                forCalc.blockData2[ids - 1] = 0;
+            } else {
+                forCalc.blockData2[ids - 1] += 1;
+            }
+            animatedTo = 180 + forCalc.blockData2[ids - 1] * 90;
+            $(this).rotate({ animateTo: animatedTo });
+        }
+        function isInteger(number) {
+            return number % 1 === 0;
+        }
+        function gausscheck() {
+            var dat1 = JSON.parse(JSON.stringify(forCalc.blockData1));
+            var dat2 = JSON.parse(JSON.stringify(forCalc.blockData2));
+            var t = gauss(dat1, dat2);
+            var s = 0;
+            for (i = 0; i < t.length; i++) {
+                if (Number.isNaN(t[i])) t[i] = "Nothing";
+                else if (!isInteger(t[i])) s += 1;
+            }
+            if (s != 0) {
+                for (j = 0; j < forCalc.blockData2.length; j++) {
+                    forCalc.blockData2[j]++;
+                    if (forCalc.blockData2[j] > (2 + forCalc.blockType)) forCalc.blockData2[j] = forCalc.blockData2[j] - 2 - forCalc.blockType;
+                }
+                return gausscheck();
+            } else return t;
+        }
+        function trimBlock() {
+            var tempdat1 = [];
+            var tempdat2 = [];
+            var k = 2 + forCalc.blockType;
+            for (j = 0; j < forCalc.blockData2.length; j++) {
+                if (forCalc.ignoreData[j]) {
+                    if (arraySum(forCalc.blockData1[j]) <= 1) {
+                        forCalc.ignoreData2[j] = true;
+                    } else {
+                        forCalc.ignoreData2[j] = k;
+                    }
+                } else forCalc.ignoreData2[j] = false;
+            }
+            var p = 0;
+            for (i = 0; i < forCalc.blockData2.length; i++) {
+                if (forCalc.ignoreData2[i] == k || !forCalc.ignoreData2[i]) {
+                    tempdat1[p] = [];
+                    for (h = 0; h < forCalc.blockData2.length; h++) {
+                        if (forCalc.ignoreData2[h] == k) {
+                            tempdat1[p].push(k);
+                        } else if (!forCalc.ignoreData2[h]) {
+                            tempdat1[p].push(forCalc.blockData1[i][h]);
+                        }
+                    }
+                    tempdat2[p] = forCalc.blockData2[i];
+                    p++;
+                }
+            }
+            forCalc.blockData1 = tempdat1;
+            forCalc.blockData2 = tempdat2;
+        }
+        function arraySum(arr) {
+            return arr.reduce(function (accumulator, currentValue) {
+                return accumulator + currentValue;
+            }, 0);
+        }
+        $(document).ready(startPage);
+    </script>
+</head>
+
+<body>
+    <div id="header">
+        <div id="headerContent">
+            <div id="menu1">블럭 형태와 갯수를 선택하세요. <button onclick="initBlocks()">다음</button></div>
+            <div id="menu2" style="display:none;">블럭을 드래그하여 위치를 맞춰보세요. <button onclick="getBlocks()">다음</button></div>
+            <div id="menu3" style="display:none;"><span style="color:red">이 새끼</span>를 때리면 움직이는 블록을 <span
+                    style="color:blue">선택</span>해주세요. (<span id="how1"></span>/<span id="how2"></span>) <br>만약에 때려도 반응없는
+                새끼면 그냥 빨간색을 꺼주세요. <button onclick="whatBlock()">다음</button></div>
+            <div id="menu4" style="display:none;">블럭을 클릭하여 현재 상태로 맞춰주세요. <button onclick="calcBlocks()">다음</button>
+            </div>
+            <div id="menu5" style="display:none;">아래에 나온 횟수대로 때리세요. 안되면 항의 ㄱㄱ</div>
+        </div>
+    </div>
+    <div id="middle">
+        <div id="middleContent">
+            <div>
+                <div id="howBlock1">
+                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+                        x="0px" y="0px" width="250.44px" height="250.44px" viewBox="0 0 250.44 250.44"
+                        style="overflow:visible;enable-background:new 0 0 250.44 250.44;" xml:space="preserve">
+                        <style type="text/css">
+                            .st0 {
+                                fill: #D1EBFA;
+                            }
+
+                            .st1 {
+                                fill: #45C1F1;
+                            }
+
+                            .st2 {
+                                fill: #FFFFFF;
+                            }
+
+                            .st3 {
+                                fill: #252E61;
+                            }
+
+                            .st4 {
+                                fill: #36A9E1;
+                            }
+                        </style>
+                        <defs>
+                        </defs>
+                        <g>
+                            <g>
+                                <path class="st0" d="M149.19,190.53h-47.95c-24.28,0-43.96-19.68-43.96-43.96V98.62c0-24.28,19.68-43.96,43.96-43.96h47.95
+			c24.28,0,43.96,19.68,43.96,43.96v47.95C193.16,170.85,173.48,190.53,149.19,190.53z" />
+                            </g>
+                            <g>
+                                <circle class="st1" cx="125.22" cy="89.38" r="19.78" />
+                            </g>
+                            <g>
+                                <circle class="st2" cx="93.71" cy="147.45" r="19.78" />
+                            </g>
+                            <g>
+                                <circle class="st1" cx="158.58" cy="147.45" r="19.78" />
+                            </g>
+                        </g>
+                        <path class="st3" d="M0,0v250.44h250.44V0H0z M51.14,19.14c-4,1.67-9.76,4.97-14.42,11.2c-3.18,4.25-5.36,9.27-6.31,14.53
+	l-1.66,9.16l-5.5-7.5c-2.36-3.22-4.38-6.68-6-10.29c-2.71-6.03-4.35-12.47-4.86-19.14l7.98-0.61c0.44,5.75,1.85,11.29,4.18,16.47
+	c0.22,0.49,0.45,0.98,0.69,1.47c1.33-3.15,3.04-6.14,5.08-8.87c5.74-7.68,12.82-11.74,17.74-13.79L51.14,19.14z M242.44,242.44H8
+	V63.26h53.98V8h180.46V242.44z" />
+                        <g>
+                            <rect x="183.58" y="150.64" class="st4" width="19.33" height="3" />
+                        </g>
+                        <g>
+
+                            <rect x="185.63" y="155.36"
+                                transform="matrix(0.2243 -0.9745 0.9745 0.2243 -15.0163 309.8422)" class="st4" width="3"
+                                height="17.99" />
+                        </g>
+                        <g>
+
+                            <rect x="176.48" y="166.08"
+                                transform="matrix(0.5008 -0.8656 0.8656 0.5008 -61.5647 240.8067)" class="st4" width="3"
+                                height="15.39" />
+                        </g>
+                    </svg>
+                </div>
+                <div id="howBlock2">
+                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+                        x="0px" y="0px" width="250.44px" height="250.44px" viewBox="0 0 250.44 250.44"
+                        style="overflow:visible;enable-background:new 0 0 250.44 250.44;" xml:space="preserve">
+                        <style type="text/css">
+                            .st0 {
+                                fill: #D1EBFA;
+                            }
+
+                            .st1 {
+                                fill: #45C1F1;
+                            }
+
+                            .st2 {
+                                fill: #252E61;
+                            }
+                        </style>
+                        <defs>
+                        </defs>
+                        <g>
+                            <g>
+                                <path class="st0" d="M139.56,154.46h-28.67c-24.28,0-43.96-19.68-43.96-43.96V81.82c0-24.28,19.68-43.96,43.96-43.96h28.67
+			c24.28,0,43.96,19.68,43.96,43.96v28.67C183.52,134.77,163.84,154.46,139.56,154.46z" />
+                            </g>
+                            <g>
+                                <circle class="st1" cx="125.22" cy="67.65" r="16.97" />
+                            </g>
+                            <g>
+                                <circle class="st1" cx="98.18" cy="117.49" r="16.97" />
+                            </g>
+                            <g>
+                                <circle class="st1" cx="153.85" cy="117.49" r="16.97" />
+                            </g>
+                        </g>
+                        <path class="st2" d="M0,0v250.44h250.44V0H0z M51.14,19.14c-4,1.67-9.76,4.97-14.42,11.2c-3.18,4.25-5.36,9.27-6.31,14.53
+	l-1.66,9.16l-5.5-7.5c-2.36-3.22-4.38-6.68-6-10.29c-2.71-6.03-4.35-12.47-4.86-19.14l7.98-0.61c0.44,5.75,1.85,11.29,4.18,16.47
+	c0.22,0.49,0.45,0.98,0.69,1.47c1.33-3.15,3.04-6.14,5.08-8.87c5.74-7.68,12.82-11.74,17.74-13.79L51.14,19.14z M242.44,242.44H8
+	V63.26h53.98V8h180.46V242.44z" />
+                        <g>
+                            <g>
+                                <path class="st1" d="M110.15,203.38v-3c-25.37,0-37.7-4.44-37.7-13.58c0-4.18,8.9-9.68,28.79-12.56l-0.43-2.97
+			c-19.63,2.84-31.36,8.65-31.36,15.53C69.44,198.11,82.38,203.38,110.15,203.38z" />
+                            </g>
+                            <g>
+                                <g>
+                                    <path class="st1" d="M95.68,173.59l-7.45-10.22l0.35-0.27l18.15,5.51c6.23,0.83,12.46,1.67,18.7,2.5
+				c-6.01,1.86-12.01,3.72-18.02,5.57l-16.98,8.45l-0.38-0.15L95.68,173.59z" />
+                                </g>
+                            </g>
+                        </g>
+                        <g>
+                            <g>
+                                <path class="st1" d="M153.66,201.71c19.63-2.84,31.36-8.65,31.36-15.53c0-11.31-12.93-16.58-40.7-16.58v3
+			c25.37,0,37.7,4.44,37.7,13.58c0,4.18-8.9,9.68-28.79,12.56L153.66,201.71z" />
+                            </g>
+                            <g>
+                                <g>
+                                    <path class="st1" d="M158.78,199.39l7.45,10.22l-0.35,0.27l-18.15-5.51c-6.23-0.83-12.46-1.67-18.7-2.5
+				c6.01-1.86,12.01-3.72,18.02-5.57l16.98-8.45l0.38,0.15L158.78,199.39z" />
+                                </g>
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+            </div>
+            <div>몇개임?
+                <select id="howMuch">
+                    <optgroup>
+                        <option value="3">3개</option>
+                        <option value="4">4개</option>
+                        <option value="5">5개</option>
+                        <option value="6">6개</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div id="footer">
+        <div id="footerContent">
+            <div id="block1">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+                    y="0px" width="193.85px" height="262.64px" viewBox="0 0 193.85 262.64"
+                    style="overflow:visible;enable-background:new 0 0 193.85 262.64;" xml:space="preserve">
+                    <style type="text/css">
+                        .st0 {
+                            fill: #D1EBFA;
+                        }
+
+                        .st1 {
+                            fill: #45C1F1;
+                        }
+                    </style>
+                    <defs>
+                    </defs>
+                    <path class="st0" d="M146.39,259.14H47.46c-24.28,0-43.96-19.68-43.96-43.96v-98.92c0-24.28,19.68-43.96,43.96-43.96h98.92
+                    c24.28,0,43.96,19.68,43.96,43.96v98.92C190.35,239.46,170.67,259.14,146.39,259.14z" />
+                    <circle class="st1 kne1" cx="96.92" cy="120.04" r="27.2" />
+                    <circle class="st1 kne3" cx="53.6" cy="199.9" r="27.2" />
+                    <circle class="st1 kne2" cx="142.8" cy="199.9" r="27.2" />
+                    <g>
+                        <path class="pwn" d="M146.39,68.79h-33.43c1.29-2.48,2.03-5.3,2.03-8.29c0-9.97-8.08-18.05-18.05-18.05s-18.05,8.08-18.05,18.05
+                        c0,2.99,0.74,5.8,2.03,8.29H47.46C21.29,68.79,0,90.09,0,116.26v98.92c0,26.17,21.29,47.46,47.46,47.46h98.92
+                        c26.17,0,47.46-21.29,47.46-47.46v-98.92C193.85,90.09,172.56,68.79,146.39,68.79z M186.85,215.18c0,22.31-18.15,40.46-40.46,40.46
+                        H47.46C25.15,255.64,7,237.49,7,215.18v-98.92c0-22.31,18.15-40.46,40.46-40.46h39.89c2.78,1.74,6.05,2.77,9.57,2.77
+                        s6.79-1.02,9.57-2.77h39.89c22.31,0,40.46,18.15,40.46,40.46V215.18z" />
+                        <rect class="pwn" x="93.1" width="7.65" height="33.13" />
+                        <rect class="pwn" x="111.1" y="24.21"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 17.5695 98.4871)" width="33.13"
+                            height="7.65" />
+                        <rect class="pwn" x="62.36" y="11.47"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 -0.4399 55.0089)" width="7.65"
+                            height="33.13" />
+                    </g>
+                </svg>
+
+            </div>
+            <div id="block2">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+                    y="0px" width="193.85px" height="262.64px" viewBox="0 0 193.85 262.64"
+                    style="overflow:visible;enable-background:new 0 0 193.85 262.64;" xml:space="preserve">
+                    <style type="text/css">
+                        .st0 {
+                            fill: #D1EBFA;
+                        }
+
+                        .st1 {
+                            fill: #45C1F1;
+                        }
+                    </style>
+                    <defs>
+                    </defs>
+                    <path class="st0" d="M146.39,259.14H47.46c-24.28,0-43.96-19.68-43.96-43.96v-98.92c0-24.28,19.68-43.96,43.96-43.96h98.92
+                                c24.28,0,43.96,19.68,43.96,43.96v98.92C190.35,239.46,170.67,259.14,146.39,259.14z" />
+                    <circle class="st1 kne1" cx="96.92" cy="120.04" r="27.2" />
+                    <circle class="st1 kne3" cx="53.6" cy="199.9" r="27.2" />
+                    <circle class="st1 kne2" cx="142.8" cy="199.9" r="27.2" />
+                    <g>
+                        <path class="pwn" d="M146.39,68.79h-33.43c1.29-2.48,2.03-5.3,2.03-8.29c0-9.97-8.08-18.05-18.05-18.05s-18.05,8.08-18.05,18.05
+                                    c0,2.99,0.74,5.8,2.03,8.29H47.46C21.29,68.79,0,90.09,0,116.26v98.92c0,26.17,21.29,47.46,47.46,47.46h98.92
+                                    c26.17,0,47.46-21.29,47.46-47.46v-98.92C193.85,90.09,172.56,68.79,146.39,68.79z M186.85,215.18c0,22.31-18.15,40.46-40.46,40.46
+                                    H47.46C25.15,255.64,7,237.49,7,215.18v-98.92c0-22.31,18.15-40.46,40.46-40.46h39.89c2.78,1.74,6.05,2.77,9.57,2.77
+                                    s6.79-1.02,9.57-2.77h39.89c22.31,0,40.46,18.15,40.46,40.46V215.18z" />
+                        <rect class="pwn" x="93.1" width="7.65" height="33.13" />
+                        <rect class="pwn" x="111.1" y="24.21"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 17.5695 98.4871)" width="33.13"
+                            height="7.65" />
+                        <rect class="pwn" x="62.36" y="11.47"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 -0.4399 55.0089)" width="7.65"
+                            height="33.13" />
+                    </g>
+                </svg>
+
+            </div>
+            <div id="block3">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+                    y="0px" width="193.85px" height="262.64px" viewBox="0 0 193.85 262.64"
+                    style="overflow:visible;enable-background:new 0 0 193.85 262.64;" xml:space="preserve">
+                    <style type="text/css">
+                        .st0 {
+                            fill: #D1EBFA;
+                        }
+
+                        .st1 {
+                            fill: #45C1F1;
+                        }
+                    </style>
+                    <defs>
+                    </defs>
+                    <path class="st0"
+                        d="M146.39,259.14H47.46c-24.28,0-43.96-19.68-43.96-43.96v-98.92c0-24.28,19.68-43.96,43.96-43.96h98.92
+                                            c24.28,0,43.96,19.68,43.96,43.96v98.92C190.35,239.46,170.67,259.14,146.39,259.14z" />
+                    <circle class="st1 kne1" cx="96.92" cy="120.04" r="27.2" />
+                    <circle class="st1 kne3" cx="53.6" cy="199.9" r="27.2" />
+                    <circle class="st1 kne2" cx="142.8" cy="199.9" r="27.2" />
+                    <g>
+                        <path class="pwn" d="M146.39,68.79h-33.43c1.29-2.48,2.03-5.3,2.03-8.29c0-9.97-8.08-18.05-18.05-18.05s-18.05,8.08-18.05,18.05
+                                                c0,2.99,0.74,5.8,2.03,8.29H47.46C21.29,68.79,0,90.09,0,116.26v98.92c0,26.17,21.29,47.46,47.46,47.46h98.92
+                                                c26.17,0,47.46-21.29,47.46-47.46v-98.92C193.85,90.09,172.56,68.79,146.39,68.79z M186.85,215.18c0,22.31-18.15,40.46-40.46,40.46
+                                                H47.46C25.15,255.64,7,237.49,7,215.18v-98.92c0-22.31,18.15-40.46,40.46-40.46h39.89c2.78,1.74,6.05,2.77,9.57,2.77
+                                                s6.79-1.02,9.57-2.77h39.89c22.31,0,40.46,18.15,40.46,40.46V215.18z" />
+                        <rect class="pwn" x="93.1" width="7.65" height="33.13" />
+                        <rect class="pwn" x="111.1" y="24.21"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 17.5695 98.4871)" width="33.13"
+                            height="7.65" />
+                        <rect class="pwn" x="62.36" y="11.47"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 -0.4399 55.0089)" width="7.65"
+                            height="33.13" />
+                    </g>
+                </svg>
+
+            </div>
+            <div id="block4">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+                    y="0px" width="193.85px" height="262.64px" viewBox="0 0 193.85 262.64"
+                    style="overflow:visible;enable-background:new 0 0 193.85 262.64;" xml:space="preserve">
+                    <style type="text/css">
+                        .st0 {
+                            fill: #D1EBFA;
+                        }
+
+                        .st1 {
+                            fill: #45C1F1;
+                        }
+                    </style>
+                    <defs>
+                    </defs>
+                    <path class="st0"
+                        d="M146.39,259.14H47.46c-24.28,0-43.96-19.68-43.96-43.96v-98.92c0-24.28,19.68-43.96,43.96-43.96h98.92
+                                                        c24.28,0,43.96,19.68,43.96,43.96v98.92C190.35,239.46,170.67,259.14,146.39,259.14z" />
+                    <circle class="st1 kne1" cx="96.92" cy="120.04" r="27.2" />
+                    <circle class="st1 kne3" cx="53.6" cy="199.9" r="27.2" />
+                    <circle class="st1 kne2" cx="142.8" cy="199.9" r="27.2" />
+                    <g>
+                        <path class="pwn"
+                            d="M146.39,68.79h-33.43c1.29-2.48,2.03-5.3,2.03-8.29c0-9.97-8.08-18.05-18.05-18.05s-18.05,8.08-18.05,18.05
+                                                            c0,2.99,0.74,5.8,2.03,8.29H47.46C21.29,68.79,0,90.09,0,116.26v98.92c0,26.17,21.29,47.46,47.46,47.46h98.92
+                                                            c26.17,0,47.46-21.29,47.46-47.46v-98.92C193.85,90.09,172.56,68.79,146.39,68.79z M186.85,215.18c0,22.31-18.15,40.46-40.46,40.46
+                                                            H47.46C25.15,255.64,7,237.49,7,215.18v-98.92c0-22.31,18.15-40.46,40.46-40.46h39.89c2.78,1.74,6.05,2.77,9.57,2.77
+                                                            s6.79-1.02,9.57-2.77h39.89c22.31,0,40.46,18.15,40.46,40.46V215.18z" />
+                        <rect class="pwn" x="93.1" width="7.65" height="33.13" />
+                        <rect class="pwn" x="111.1" y="24.21"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 17.5695 98.4871)" width="33.13"
+                            height="7.65" />
+                        <rect class="pwn" x="62.36" y="11.47"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 -0.4399 55.0089)" width="7.65"
+                            height="33.13" />
+                    </g>
+                </svg>
+
+            </div>
+            <div id="block5">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+                    y="0px" width="193.85px" height="262.64px" viewBox="0 0 193.85 262.64"
+                    style="overflow:visible;enable-background:new 0 0 193.85 262.64;" xml:space="preserve">
+                    <style type="text/css">
+                        .st0 {
+                            fill: #D1EBFA;
+                        }
+
+                        .st1 {
+                            fill: #45C1F1;
+                        }
+                    </style>
+                    <defs>
+                    </defs>
+                    <path class="st0"
+                        d="M146.39,259.14H47.46c-24.28,0-43.96-19.68-43.96-43.96v-98.92c0-24.28,19.68-43.96,43.96-43.96h98.92
+                                                                    c24.28,0,43.96,19.68,43.96,43.96v98.92C190.35,239.46,170.67,259.14,146.39,259.14z" />
+                    <circle class="st1 kne1" cx="96.92" cy="120.04" r="27.2" />
+                    <circle class="st1 kne3" cx="53.6" cy="199.9" r="27.2" />
+                    <circle class="st1 kne2" cx="142.8" cy="199.9" r="27.2" />
+                    <g>
+                        <path class="pwn"
+                            d="M146.39,68.79h-33.43c1.29-2.48,2.03-5.3,2.03-8.29c0-9.97-8.08-18.05-18.05-18.05s-18.05,8.08-18.05,18.05
+                                                                        c0,2.99,0.74,5.8,2.03,8.29H47.46C21.29,68.79,0,90.09,0,116.26v98.92c0,26.17,21.29,47.46,47.46,47.46h98.92
+                                                                        c26.17,0,47.46-21.29,47.46-47.46v-98.92C193.85,90.09,172.56,68.79,146.39,68.79z M186.85,215.18c0,22.31-18.15,40.46-40.46,40.46
+                                                                        H47.46C25.15,255.64,7,237.49,7,215.18v-98.92c0-22.31,18.15-40.46,40.46-40.46h39.89c2.78,1.74,6.05,2.77,9.57,2.77
+                                                                        s6.79-1.02,9.57-2.77h39.89c22.31,0,40.46,18.15,40.46,40.46V215.18z" />
+                        <rect class="pwn" x="93.1" width="7.65" height="33.13" />
+                        <rect class="pwn" x="111.1" y="24.21"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 17.5695 98.4871)" width="33.13"
+                            height="7.65" />
+                        <rect class="pwn" x="62.36" y="11.47"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 -0.4399 55.0089)" width="7.65"
+                            height="33.13" />
+                    </g>
+                </svg>
+
+            </div>
+            <div id="block6">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+                    y="0px" width="193.85px" height="262.64px" viewBox="0 0 193.85 262.64"
+                    style="overflow:visible;enable-background:new 0 0 193.85 262.64;" xml:space="preserve">
+                    <style type="text/css">
+                        .st0 {
+                            fill: #D1EBFA;
+                        }
+
+                        .st1 {
+                            fill: #45C1F1;
+                        }
+                    </style>
+                    <defs>
+                    </defs>
+                    <path class="st0"
+                        d="M146.39,259.14H47.46c-24.28,0-43.96-19.68-43.96-43.96v-98.92c0-24.28,19.68-43.96,43.96-43.96h98.92
+                                                                                c24.28,0,43.96,19.68,43.96,43.96v98.92C190.35,239.46,170.67,259.14,146.39,259.14z" />
+                    <circle class="st1 kne1" cx="96.92" cy="120.04" r="27.2" />
+                    <circle class="st1 kne3" cx="53.6" cy="199.9" r="27.2" />
+                    <circle class="st1 kne2" cx="142.8" cy="199.9" r="27.2" />
+                    <g>
+                        <path class="pwn"
+                            d="M146.39,68.79h-33.43c1.29-2.48,2.03-5.3,2.03-8.29c0-9.97-8.08-18.05-18.05-18.05s-18.05,8.08-18.05,18.05
+                                                                                    c0,2.99,0.74,5.8,2.03,8.29H47.46C21.29,68.79,0,90.09,0,116.26v98.92c0,26.17,21.29,47.46,47.46,47.46h98.92
+                                                                                    c26.17,0,47.46-21.29,47.46-47.46v-98.92C193.85,90.09,172.56,68.79,146.39,68.79z M186.85,215.18c0,22.31-18.15,40.46-40.46,40.46
+                                                                                    H47.46C25.15,255.64,7,237.49,7,215.18v-98.92c0-22.31,18.15-40.46,40.46-40.46h39.89c2.78,1.74,6.05,2.77,9.57,2.77
+                                                                                    s6.79-1.02,9.57-2.77h39.89c22.31,0,40.46,18.15,40.46,40.46V215.18z" />
+                        <rect class="pwn" x="93.1" width="7.65" height="33.13" />
+                        <rect class="pwn" x="111.1" y="24.21"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 17.5695 98.4871)" width="33.13"
+                            height="7.65" />
+                        <rect class="pwn" x="62.36" y="11.47"
+                            transform="matrix(0.7071 -0.7071 0.7071 0.7071 -0.4399 55.0089)" width="7.65"
+                            height="33.13" />
+                    </g>
+                </svg>
+
+            </div>
+
+        </div>
+    </div>
+
+</body>
+
+</html>
